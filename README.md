@@ -1,1 +1,1 @@
-# data_driven_quadratic_jsr
+# DataDrivenQuadraticJSR
