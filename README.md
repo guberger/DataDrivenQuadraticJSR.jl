@@ -1,1 +1,1 @@
-# DataDrivenQuadraticJSR
+# DataDrivenQuadraticJSR.jl
