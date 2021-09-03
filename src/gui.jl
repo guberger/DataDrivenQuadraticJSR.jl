@@ -2,266 +2,293 @@ Cursor = matplotlib.widgets.Cursor
 Button = matplotlib.widgets.Button
 Slider = matplotlib.widgets.Slider
 
-function new_gui(A)
+mutable struct the_gui
+    A::SMatrix{2,2,Float64}
+    γ::Float64
+    trace::Float64
+    ηm::Float64
+    ηa::Float64
+    P_opt::SMatrix{2,2,Float64}
+    is_P_opt_set::Bool
+    fig
+    ax_points
+    ax_ellipse
+    ax_constr
+    plt_points_x
+    plt_points_ηm
+    plt_points_ηa
+    plt_points_y
+    plt_ellipse
+    plt_ellipse_γ
+    plt_ellipse_x
+    plt_ellipse_y
+    plt_constr_circle
+    plt_constr_ellipse
+    plt_constr_lines
+    x_list::Vector{SVector{2,Float64}}
+    y_list::Vector{SVector{2,Float64}}
+    ηm_list::Vector{Float64}
+    ηa_list::Vector{Float64}
+    cursor_points
+    button_compute
+    button_clear
+    slider_γ
+    slider_tr
+    slider_ηm
+    slider_ηa
+    circle::Tuple{Vector{Float64},Vector{Float64}}
+end
+
+function new_gui(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
     fig = PyPlot.figure(figsize = (10.4, 9.8))
     ax_points = fig.add_axes((0.05, 0.57, 0.4, 0.4), aspect = "equal")
     ax_ellipse = fig.add_axes((0.55, 0.57, 0.4, 0.4), aspect = "equal")
     ax_constr = fig.add_axes((0.05, 0.05, 0.4, 0.4), aspect = "equal")
 
-    the_γ = [1.0]
-    the_tr = [20.0]
-    the_ηm = [0.0]
-    the_ηa = [0.0]
-    the_P_opt = [SMatrix{2,2}(NaN, NaN, NaN, NaN)]
-
-    np = 200
-    the_t_circle = range(0.0, 2.0*π, length = np)
-    ax_points.plot(cos.(the_t_circle), sin.(the_t_circle))
-    rad = max(0.0, the_tr[1]/2.0 - 1.0)
-    plt_constr_circle, = ax_constr.plot(
-        rad.*cos.(the_t_circle), rad.*sin.(the_t_circle))
-    ax_points.set_xlim(-1.5, 1.5)
-    ax_points.set_ylim(-1.5, 1.5)
-    ax_ellipse.set_xlim(-1.5, 1.5)
-    ax_ellipse.set_ylim(-1.5, 1.5)
-    clims = max(1.0, rad)
-    ax_constr.set_xlim(-1.05*clims, 1.05*clims)
-    ax_constr.set_ylim(-1.05*clims, 1.05*clims)
     # Set useblit=True on most backends for enhanced performance.
-    cursor_points = Cursor(ax_points, useblit = true, color = "red",
-        linewidth = 1.5)
+    cursor_points = Cursor(ax_points, useblit = true, color = "red", linewidth = 1.5)
     plt_points_x, = ax_points.plot((), ())
-    plt_points_x.set_ls("none")
-    plt_points_x.set_marker("o")
-    plt_points_x.set_c("blue")
     plt_points_ηm = ax_points.scatter((), (), (), marker = "x")
-    plt_points_ηm.set_ec("orange")
-    plt_points_ηm.set_fc("none")
-    plt_points_ηm.set_lw(1.5)
-    plt_points_ηm.set_zorder(100)
     plt_points_ηa = ax_points.scatter((), (), (), marker = "o")
-    plt_points_ηa.set_ec("green")
-    plt_points_ηa.set_fc("none")
-    plt_points_ηa.set_lw(1.5)
-    plt_points_ηa.set_zorder(100)
     plt_points_y, = ax_points.plot((), ())
-    plt_points_y.set_ls("none")
-    plt_points_y.set_marker("o")
-    plt_points_y.set_c("red")
 
     plt_ellipse, = ax_ellipse.plot((), ())
-    plt_ellipse.set_lw("2.0")
-    plt_ellipse.set_c("black")
     plt_ellipse_γ, = ax_ellipse.plot((), ())
-    plt_ellipse_γ.set_ls("--")
-    plt_ellipse_γ.set_c("black")
     plt_ellipse_x, = ax_ellipse.plot((), ())
-    plt_ellipse_x.set_ls("none")
-    plt_ellipse_x.set_marker("o")
-    plt_ellipse_x.set_c("blue")
     plt_ellipse_y, = ax_ellipse.plot((), ())
-    plt_ellipse_y.set_ls("none")
-    plt_ellipse_y.set_marker("o")
-    plt_ellipse_y.set_c("red")
 
+    plt_constr_circle, = ax_constr.plot((), ())
     plt_constr_ellipse, = ax_constr.plot((), ())
-    plt_constr_ellipse.set_ls("none")
-    plt_constr_ellipse.set_marker("o")
-    plt_constr_ellipse.set_c("red")
-    plt_constr_list = []
-
-    the_x_list = SVector{2,Float64}[]
-    the_y_list = SVector{2,Float64}[]
-    the_ηm_list = Float64[]
-    the_ηa_list = Float64[]
+    plt_constr_lines = []
 
     ax_button_compute = fig.add_axes((0.76, 0.33, 0.13, 0.075))
     button_compute = Button(ax_button_compute, "Compute cone")
     ax_button_clear = fig.add_axes((0.63, 0.33, 0.1, 0.075))
     button_clear = Button(ax_button_clear, "Clear")
 
-    button_compute.on_clicked() do event
-        on_press_button_compute(the_x_list, the_y_list, the_ηm_list, the_ηa_list,
-            plt_ellipse, plt_ellipse_γ, plt_ellipse_x, plt_ellipse_y,
-            plt_constr_ellipse, the_tr, the_P_opt)
-    end
-
-    button_clear.on_clicked() do event
-        on_press_button_clear(the_x_list, the_y_list, the_ηm_list, the_ηa_list,
-            ax_points, ax_ellipse, ax_constr,
-            plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
-            plt_constr_list,
-            (slider_γ, slider_tr, slider_ηm, slider_ηa), the_tr, the_P_opt)
-    end
-
     ax_slider_γ = fig.add_axes((0.06, 0.48, 0.88, 0.03))
-    slider_γ = Slider(ax_slider_γ, "γ", valmin = 0.0, valmax = 5.0,
-        valinit = the_γ[1])
+    slider_γ = Slider(ax_slider_γ, "γ", valmin = 0.0, valmax = γ_max, valinit = γ)
     ax_slider_tr = fig.add_axes((0.5, 0.23, 0.4, 0.03))
-    slider_tr = Slider(ax_slider_tr, "tr", valmin = 0.0, valmax = 50.0,
-        valinit = the_tr[1])
+    slider_tr = Slider(ax_slider_tr, "tr", valmin = 0.0, valmax = trace_max, valinit = trace)
     ax_slider_ηm = fig.add_axes((0.5, 0.19, 0.4, 0.03))
-    slider_ηm = Slider(ax_slider_ηm, "ηm", valmin = 0.0, valmax = 1.0,
-        valinit = the_ηm[1])
+    slider_ηm = Slider(ax_slider_ηm, "ηm", valmin = 0.0, valmax = 1.0, valinit = 0.0)
     ax_slider_ηa = fig.add_axes((0.5, 0.15, 0.4, 0.03))
-    slider_ηa = Slider(ax_slider_ηa, "ηa", valmin = 0.0, valmax = 1.0,
-        valinit = the_ηa[1])
+    slider_ηa = Slider(ax_slider_ηa, "ηa", valmin = 0.0, valmax = 1.0, valinit = 0.0)
 
-    slider_γ.on_changed() do val
-        the_γ[1] = val
-        draw_constraints(the_x_list, the_y_list, the_ηm_list, the_ηa_list,
-            plt_constr_list, the_γ[1], the_tr[1])
+    the_t_circle = range(0.0, 2.0*π, length = np)
+
+    my_gui = the_gui(A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false,
+        fig, ax_points, ax_ellipse, ax_constr,
+        plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
+        plt_ellipse, plt_ellipse_γ, plt_ellipse_x, plt_ellipse_y,
+        plt_constr_circle, plt_constr_ellipse, plt_constr_lines,
+        SVector{2,Float64}[], SVector{2,Float64}[], Float64[], Float64[],
+        cursor_points, button_compute, button_clear,
+        slider_γ, slider_tr, slider_ηm, slider_ηa,
+        (cos.(the_t_circle), sin.(the_t_circle)))
+
+    initialize(my_gui)
+
+    return my_gui
+end
+
+function initialize(MG)
+    MG.ax_points.plot(MG.circle[1], MG.circle[2], "tab:blue")
+    MG.ax_points.set_xlim(-1.5, 1.5)
+    MG.ax_points.set_ylim(-1.5, 1.5)
+    MG.ax_ellipse.set_xlim(-1.5, 1.5)
+    MG.ax_ellipse.set_ylim(-1.5, 1.5)
+
+    MG.plt_points_x.set_ls("none")
+    MG.plt_points_x.set_marker("o")
+    MG.plt_points_x.set_c("blue")
+    MG.plt_points_ηm.set_ec("orange")
+    MG.plt_points_ηm.set_fc("none")
+    MG.plt_points_ηm.set_lw(1.5)
+    MG.plt_points_ηm.set_zorder(100)
+    MG.plt_points_ηa.set_ec("green")
+    MG.plt_points_ηa.set_fc("none")
+    MG.plt_points_ηa.set_lw(1.5)
+    MG.plt_points_ηa.set_zorder(100)
+    MG.plt_points_y.set_ls("none")
+    MG.plt_points_y.set_marker("o")
+    MG.plt_points_y.set_c("red")
+
+    MG.plt_ellipse.set_lw("2.0")
+    MG.plt_ellipse.set_c("black")
+    MG.plt_ellipse_γ.set_ls("--")
+    MG.plt_ellipse_γ.set_c("black")
+    MG.plt_ellipse_x.set_ls("none")
+    MG.plt_ellipse_x.set_marker("o")
+    MG.plt_ellipse_x.set_c("blue")
+    MG.plt_ellipse_y.set_ls("none")
+    MG.plt_ellipse_y.set_marker("o")
+    MG.plt_ellipse_y.set_c("red")
+
+    MG.plt_constr_ellipse.set_ls("none")
+    MG.plt_constr_ellipse.set_marker("o")
+    MG.plt_constr_ellipse.set_c("red")
+    draw_constr_circle(MG)
+    set_constr_lims(MG)
+
+    MG.button_compute.on_clicked() do event
+        on_press_button_compute(MG)
     end
 
-    slider_tr.on_changed() do val
-        the_tr[1] = val
-        rad = max(0.0, the_tr[1]/2.0 - 1.0)
-        plt_constr_circle.set_xdata(rad.*cos.(the_t_circle))
-        plt_constr_circle.set_ydata(rad.*sin.(the_t_circle))
-        draw_constraints(the_x_list, the_y_list, the_ηm_list, the_ηa_list,
-            plt_constr_list, the_γ[1], the_tr[1])
-        clims = max(1.0, rad)
-        ax_constr.set_xlim(-1.05*clims, 1.05*clims)
-        ax_constr.set_ylim(-1.05*clims, 1.05*clims)
-        if the_P_opt[1] == SMatrix{2,2}(NaN, NaN, NaN, NaN)
-            return
+    MG.button_clear.on_clicked() do event
+        on_press_button_clear(MG)
+    end
+
+    MG.slider_γ.on_changed() do val
+        MG.γ = val
+        draw_constr_lines(MG)
+    end
+
+    MG.slider_tr.on_changed() do val
+        MG.trace = val
+        draw_constr_circle(MG)
+        if MG.is_P_opt_set
+            draw_constr_ellipse(MG)
         end
-        P_opt = the_P_opt[1]
-        P_opt_n = the_tr[1]*P_opt./tr(P_opt)
-        t = (P_opt_n[1, 1] - P_opt_n[2, 2])/2
-        u = (P_opt_n[1, 2] + P_opt_n[2, 1])/2
-        plt_constr_ellipse.set_xdata((t,))
-        plt_constr_ellipse.set_ydata((u,))
+        draw_constr_lines(MG)
+        set_constr_lims(MG)
     end
 
-    slider_ηm.on_changed() do val
-        the_ηm[1] = val
+    MG.slider_ηm.on_changed() do val
+        MG.ηm = val
     end
 
-    slider_ηa.on_changed() do val
-        the_ηa[1] = val
+    MG.slider_ηa.on_changed() do val
+        MG.ηa = val
     end
 
-    fig.canvas.mpl_connect("button_press_event", event -> begin
+    MG.fig.canvas.mpl_connect("button_press_event", event -> begin
         @printf("%s click: button=%d, x=%d, y=%d\n",
             event.dblclick ? "double" : "single", event.button, event.x, event.y)
 
-        if event.inaxes == ax_points
+        if event.inaxes == MG.ax_points
             xydata = (event.xdata, event.ydata)
-            on_press_points(xydata, A,
-                the_x_list, the_y_list, the_ηm_list, the_ηa_list,
-                ax_constr,
-                plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
-                plt_constr_list,
-                the_γ, the_tr, the_ηm, the_ηa)
+            on_press_points(xydata, MG)
             return
         end
-        if event.inaxes == ax_button_compute || event.inaxes == ax_button_clear
-            @printf("pressed button\n")
+        if event.inaxes == MG.button_compute.ax ||
+                event.inaxes == MG.button_clear.ax ||
+                event.inaxes == MG.slider_γ.ax ||
+                event.inaxes == MG.slider_tr.ax ||
+                event.inaxes == MG.slider_ηm.ax ||
+                event.inaxes == MG.slider_ηa.ax
+            @printf("pressed button/slider\n")
             return
         end
 
         @printf("void place: %s\n", event.inaxes)
     end)
-
-    return cursor_points, button_compute, button_clear,
-        slider_γ, slider_tr, slider_ηm, slider_ηa,
-        the_P_opt
 end
 
-function on_press_points(xydata, A, xlist, ylist, ηmlist, ηalist,
-    axc, pltx, pltηm, pltηa, plty, pltclist, the_γ, the_tr, the_ηm, the_ηa)
+function on_press_points(xydata, MG)
     x = SVector(xydata)
-    y = A*x
-    push!(xlist, x)
-    push!(ηmlist, the_ηm[1])
-    push!(ηalist, the_ηa[1])
-    push!(ylist, y)
-    pltx.set_xdata(map(p -> p[1], xlist))
-    pltx.set_ydata(map(p -> p[2], xlist))
-    pltηm.set_offsets(xlist)
-    pltηm.set_sizes(ηmlist.*1000)
-    pltηa.set_offsets(xlist)
-    pltηa.set_sizes(ηalist.*1000)
-    plty.set_xdata(map(p -> p[1], ylist))
-    plty.set_ydata(map(p -> p[2], ylist))
-    p, q = points_2_plane(x, y, the_γ[1], the_tr[1], the_ηm[1], the_ηa[1])
-    PLT, = axc.plot((p[1], q[1]), (p[2], q[2]))
+    y = MG.A*x
+    push!(MG.x_list, x)
+    push!(MG.ηm_list, MG.ηm)
+    push!(MG.ηa_list, MG.ηa)
+    push!(MG.y_list, y)
+    MG.plt_points_x.set_xdata(map(p -> p[1], MG.x_list))
+    MG.plt_points_x.set_ydata(map(p -> p[2], MG.x_list))
+    MG.plt_points_ηm.set_offsets(MG.x_list)
+    MG.plt_points_ηm.set_sizes(MG.ηm_list.*1000)
+    MG.plt_points_ηa.set_offsets(MG.x_list)
+    MG.plt_points_ηa.set_sizes(MG.ηa_list.*1000)
+    MG.plt_points_y.set_xdata(map(p -> p[1], MG.y_list))
+    MG.plt_points_y.set_ydata(map(p -> p[2], MG.y_list))
+    p, q = points_2_plane(x, y, MG.γ, MG.trace, MG.ηm, MG.ηa)
+    PLT, = MG.ax_constr.plot((p[1], q[1]), (p[2], q[2]))
     PLT.set_c("black")
-    push!(pltclist, PLT)
+    push!(MG.plt_constr_lines, PLT)
 end
 
-function on_press_button_compute(xlist, ylist, ηmlist, ηalist,
-        plte, plteγ, pltex, pltey, pltce, the_tr, the_P_opt)
-    γ_opt, P_opt = jsr_quadratic(xlist, ylist, ηmlist, ηalist, 0.0, 1e2)
-    the_P_opt[1] = P_opt
-    trace = tr(P_opt)
+function on_press_button_compute(MG)
+    γ_opt, P_opt = jsr_quadratic(MG.x_list, MG.y_list, MG.ηm_list, MG.ηa_list, 0.0, 1e2)
+    MG.P_opt = P_opt
+    MG.is_P_opt_set = true
+    @printf("Trace: %f\n", tr(P_opt))
     n_Q, x1_ellipse_list, x2_ellipse_list = matrix_2_ellipse(P_opt, 500)
-    plte.set_xdata(x1_ellipse_list)
-    plte.set_ydata(x2_ellipse_list)
-    plteγ.set_xdata(γ_opt.*x1_ellipse_list)
-    plteγ.set_ydata(γ_opt.*x2_ellipse_list)
+    MG.plt_ellipse.set_xdata(x1_ellipse_list)
+    MG.plt_ellipse.set_ydata(x2_ellipse_list)
+    MG.plt_ellipse_γ.set_xdata(γ_opt.*x1_ellipse_list)
+    MG.plt_ellipse_γ.set_ydata(γ_opt.*x2_ellipse_list)
 
     xplist = SVector{2,Float64}[]
     yplist = SVector{2,Float64}[]
 
-    for (x, y) in zip(xlist, ylist)
+    for (x, y) in zip(MG.x_list, MG.y_list)
         n_x = sqrt(x'*P_opt*x)*n_Q
         push!(xplist, x/n_x)
         push!(yplist, y/n_x)
     end
 
-    pltex.set_xdata(map(p -> p[1], xplist))
-    pltex.set_ydata(map(p -> p[2], xplist))
-    pltey.set_xdata(map(p -> p[1], yplist))
-    pltey.set_ydata(map(p -> p[2], yplist))
-
-    P_opt_n = the_tr[1]*P_opt./tr(P_opt)
-    t = (P_opt_n[1, 1] - P_opt_n[2, 2])/2
-    u = (P_opt_n[1, 2] + P_opt_n[2, 1])/2
-    pltce.set_xdata((t,))
-    pltce.set_ydata((u,))
-    @printf("Trace: %f\n", trace)
+    MG.plt_ellipse_x.set_xdata(map(p -> p[1], xplist))
+    MG.plt_ellipse_x.set_ydata(map(p -> p[2], xplist))
+    MG.plt_ellipse_y.set_xdata(map(p -> p[1], yplist))
+    MG.plt_ellipse_y.set_ydata(map(p -> p[2], yplist))
+    draw_constr_ellipse(MG)
 end
 
-function on_press_button_clear(xlist, ylist, ηmlist, ηalist,
-    axp, axe, axc, pltx, pltηm, pltηa, plty, pltclist, sliders, the_tr, the_P_opt)
-    empty!(xlist)
-    empty!(ylist)
-    empty!(ηmlist)
-    empty!(ηalist)
-    the_P_opt[1] = SMatrix{2,2}(NaN, NaN, NaN, NaN)
-    pltx.set_xdata(())
-    pltx.set_ydata(())
-    pltηm.set_offsets(())
-    pltηm.set_sizes(())
-    pltηa.set_offsets(())
-    pltηa.set_sizes(())
-    plty.set_xdata(())
-    plty.set_ydata(())
-    axp.set_xlim(-1.5, 1.5)
-    axp.set_ylim(-1.5, 1.5)
-    axe.set_xlim(-1.5, 1.5)
-    axe.set_ylim(-1.5, 1.5)
-    rad = max(0.0, the_tr[1]/2.0 - 1.0)
-    clims = max(1.0, rad)
-    axc.set_xlim(-1.05*clims, 1.05*clims)
-    axc.set_ylim(-1.05*clims, 1.05*clims)
-    for slider in sliders
+function on_press_button_clear(MG)
+    empty!(MG.x_list)
+    empty!(MG.y_list)
+    empty!(MG.ηm_list)
+    empty!(MG.ηa_list)
+    MG.is_P_opt_set = false
+    MG.plt_points_x.set_xdata(())
+    MG.plt_points_x.set_ydata(())
+    MG.plt_points_ηm.set_offsets(())
+    MG.plt_points_ηm.set_sizes(())
+    MG.plt_points_ηa.set_offsets(())
+    MG.plt_points_ηa.set_sizes(())
+    MG.plt_points_y.set_xdata(())
+    MG.plt_points_y.set_ydata(())
+    MG.ax_points.set_xlim(-1.5, 1.5)
+    MG.ax_points.set_ylim(-1.5, 1.5)
+    MG.ax_ellipse.set_xlim(-1.5, 1.5)
+    MG.ax_ellipse.set_ylim(-1.5, 1.5)
+    set_constr_lims(MG)
+    for slider in (MG.slider_γ, MG.slider_tr, MG.slider_ηm, MG.slider_ηa)
         slider.reset()
     end
-    for PLT in pltclist
+    for PLT in MG.plt_constr_lines
         PLT.remove()
     end
-    empty!(pltclist)
+    empty!(MG.plt_constr_lines)
 end
 
-function draw_constraints(xlist, ylist, ηmlist, ηalist, pltclist, γ, C)
-    for (x, y, ηm, ηa, PLT) in zip(xlist, ylist, ηmlist, ηalist, pltclist)
-        p, q = points_2_plane(x, y, γ, C, ηm, ηa)
+function draw_constr_lines(MG)
+    for (x, y, ηm, ηa, PLT) in zip(MG.x_list, MG.y_list,
+            MG.ηm_list, MG.ηa_list, MG.plt_constr_lines)
+        p, q = points_2_plane(x, y, MG.γ, MG.trace, ηm, ηa)
         PLT.set_xdata((p[1], q[1]))
         PLT.set_ydata((p[2], q[2]))
     end
+end
+
+function draw_constr_circle(MG)
+    rad = max(0.0, MG.trace/2.0 - 1.0)
+    MG.plt_constr_circle.set_xdata(rad.*MG.circle[1])
+    MG.plt_constr_circle.set_ydata(rad.*MG.circle[2])
+end
+
+function draw_constr_ellipse(MG)
+    P_opt_n = MG.trace*MG.P_opt./tr(MG.P_opt)
+    t = (P_opt_n[1, 1] - P_opt_n[2, 2])/2
+    u = (P_opt_n[1, 2] + P_opt_n[2, 1])/2
+    MG.plt_constr_ellipse.set_xdata((t,))
+    MG.plt_constr_ellipse.set_ydata((u,))
+end
+
+function set_constr_lims(MG)
+    rad = max(0.0, MG.trace/2.0 - 1.0)
+    clims = max(1.0, rad)
+    MG.ax_constr.set_xlim(-1.05*clims, 1.05*clims)
+    MG.ax_constr.set_ylim(-1.05*clims, 1.05*clims)
 end
 
 function matrix_2_ellipse(P, np)
@@ -283,6 +310,6 @@ function points_2_plane(x, y, γ, C, ηm, ηa)
     z = v*(b/nv^2)
     w = SVector(v[2], -v[1])/nv
     rad = max(0.0, C/2.0 - 1.0)
-    clims = max(1.0, rad)
-    return z + clims*w, z - clims*w
+    length = max(1.0, rad)
+    return z + length*w, z - length*w
 end
