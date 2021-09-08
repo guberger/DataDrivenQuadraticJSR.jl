@@ -3,8 +3,8 @@ Button = matplotlib.widgets.Button
 CheckButtons = matplotlib.widgets.CheckButtons
 Slider = matplotlib.widgets.Slider
 
-mutable struct the_gui_compute_jsr
-    A::SMatrix{2,2,Float64}
+mutable struct the_gui_compute_jsr{N}
+    A_list::NTuple{N,SMatrix{2,2,Float64}}
     γ::Float64
     trace::Float64
     ηm::Float64
@@ -12,6 +12,7 @@ mutable struct the_gui_compute_jsr
     P_opt::SMatrix{2,2,Float64}
     is_P_opt_set::Bool
     is_singular::Bool
+    index::Int
     fig
     ax_points
     ax_ellipse
@@ -20,6 +21,7 @@ mutable struct the_gui_compute_jsr
     plt_points_ηm
     plt_points_ηa
     plt_points_y
+    plt_points_indexes
     plt_ellipse
     plt_ellipse_γ
     plt_ellipse_x
@@ -39,10 +41,13 @@ mutable struct the_gui_compute_jsr
     slider_tr
     slider_ηm
     slider_ηa
+    slider_Ai
     circle::Tuple{Vector{Float64},Vector{Float64}}
 end
 
-function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
+function new_gui_compute_jsr(A_list::NTuple{N,SMatrix{2,2,Float64}};
+        γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200) where N
+    @assert N > 0
     fig = PyPlot.figure(figsize = (10.4, 9.8))
     ax_points = fig.add_axes((0.05, 0.57, 0.4, 0.4), aspect = "equal")
     ax_ellipse = fig.add_axes((0.55, 0.57, 0.4, 0.4), aspect = "equal")
@@ -54,6 +59,7 @@ function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, 
     plt_points_ηm = ax_points.scatter((), (), (), marker = "x")
     plt_points_ηa = ax_points.scatter((), (), (), marker = "o")
     plt_points_y, = ax_points.plot((), ())
+    plt_points_indexes = []
 
     plt_ellipse, = ax_ellipse.plot((), ())
     plt_ellipse_γ, = ax_ellipse.plot((), ())
@@ -72,25 +78,27 @@ function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, 
     button_infty = CheckButtons(ax_button_infty, ("trace inf",), (false,))
 
     ax_slider_γ = fig.add_axes((0.06, 0.48, 0.88, 0.03))
-    slider_γ = Slider(ax_slider_γ, "γ", valmin = 0.0, valmax = γ_max, valinit = γ)
+    slider_γ = Slider(ax_slider_γ, "γ", valmin=0.0, valmax=γ_max, valinit=γ)
     ax_slider_tr = fig.add_axes((0.5, 0.23, 0.4, 0.03))
-    slider_tr = Slider(ax_slider_tr, "tr", valmin = 0.0, valmax = trace_max, valinit = trace)
+    slider_tr = Slider(ax_slider_tr, "tr", valmin=0.0, valmax=trace_max, valinit=trace)
     ax_slider_ηm = fig.add_axes((0.5, 0.19, 0.4, 0.03))
-    slider_ηm = Slider(ax_slider_ηm, "ηm", valmin = 0.0, valmax = 1.0, valinit = 0.0)
+    slider_ηm = Slider(ax_slider_ηm, "ηm", valmin=0.0, valmax=1.0, valinit=0.0)
     ax_slider_ηa = fig.add_axes((0.5, 0.15, 0.4, 0.03))
-    slider_ηa = Slider(ax_slider_ηa, "ηa", valmin = 0.0, valmax = 1.0, valinit = 0.0)
+    slider_ηa = Slider(ax_slider_ηa, "ηa", valmin=0.0, valmax=1.0, valinit=0.0)
+    ax_slider_Ai = fig.add_axes((0.5, 0.11, 0.4, 0.03))
+    slider_Ai = Slider(ax_slider_Ai, L"A_i", 1, N, valstep=1, valinit=1)
 
     the_t_circle = range(0.0, 2.0*π, length = np)
 
     my_gui = the_gui_compute_jsr(
-        A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false, false,
+        A_list, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false, false, 1,
         fig, ax_points, ax_ellipse, ax_constr,
-        plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
+        plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y, plt_points_indexes,
         plt_ellipse, plt_ellipse_γ, plt_ellipse_x, plt_ellipse_y,
         plt_constr_circle, plt_constr_ellipse, plt_constr_lines,
         SVector{2,Float64}[], SVector{2,Float64}[], Float64[], Float64[],
         cursor_points, button_compute, button_clear, button_infty,
-        slider_γ, slider_tr, slider_ηm, slider_ηa,
+        slider_γ, slider_tr, slider_ηm, slider_ηa, slider_Ai,
         (cos.(the_t_circle), sin.(the_t_circle)))
 
     initialize(my_gui)
@@ -180,6 +188,10 @@ function initialize(MG::the_gui_compute_jsr)
         MG.ηa = val
     end
 
+    MG.slider_Ai.on_changed() do val
+        MG.index = val
+    end
+
     MG.fig.canvas.mpl_connect("button_press_event", event -> begin
         @printf("%s click: button=%d, x=%d, y=%d\n",
             event.dblclick ? "double" : "single", event.button, event.x, event.y)
@@ -205,7 +217,7 @@ end
 
 function on_press_points(xydata, MG)
     x = SVector(xydata)
-    y = MG.A*x
+    y = MG.A_list[MG.index]*x
     push!(MG.x_list, x)
     push!(MG.ηm_list, MG.ηm)
     push!(MG.ηa_list, MG.ηa)
@@ -218,7 +230,9 @@ function on_press_points(xydata, MG)
     MG.plt_points_ηa.set_sizes(MG.ηa_list.*1000)
     MG.plt_points_y.set_xdata(map(p -> p[1], MG.y_list))
     MG.plt_points_y.set_ydata(map(p -> p[2], MG.y_list))
-    p, q = points_2_plane(x, y, MG.γ, MG.trace, MG.ηm, MG.ηa)
+    push!(MG.plt_points_indexes, MG.ax_points.text(x[1], x[2], MG.index))
+    the_trace = MG.is_singular ? 1.0 : MG.trace
+    p, q = points_2_plane(x, y, MG.γ, the_trace, MG.ηm, MG.ηa)
     PLT, = MG.ax_constr.plot((p[1], q[1]), (p[2], q[2]))
     PLT.set_c("black")
     push!(MG.plt_constr_lines, PLT)
@@ -273,9 +287,13 @@ function on_press_button_clear(MG)
     MG.ax_ellipse.set_xlim(-1.5, 1.5)
     MG.ax_ellipse.set_ylim(-1.5, 1.5)
     set_constr_lims(MG)
-    for slider in (MG.slider_γ, MG.slider_tr, MG.slider_ηm, MG.slider_ηa)
+    for slider in (MG.slider_γ, MG.slider_tr, MG.slider_ηm, MG.slider_ηa, MG.slider_Ai)
         slider.reset()
     end
+    for PLT in MG.plt_points_indexes
+        PLT.remove()
+    end
+    empty!(MG.plt_points_indexes)
     for PLT in MG.plt_constr_lines
         PLT.remove()
     end

@@ -38,7 +38,7 @@ function jsr_quadratic(x_list::Vector{SVector{N,T}}, y_list::Vector{SVector{N,T}
 end
 
 function _optim_model_regular(::Val{N},
-        x_list, y_list, ηm_list, ηa_list, γ, max_trace) where {N}
+        x_list, y_list, ηm_list, ηa_list, γ, max_trace) where N
     γ2 = γ^2
     EYE = SMatrix{N,N}(I)
     model = Model(optimizer_with_attributes(Mosek.Optimizer, "QUIET" => true))
@@ -58,7 +58,7 @@ function _optim_model_regular(::Val{N},
 end
 
 function _optim_model_singular(::Val{N},
-        x_list, y_list, ηm_list, ηa_list, γ) where {N}
+        x_list, y_list, ηm_list, ηa_list, γ) where N
     γ2 = γ^2
     model = Model(optimizer_with_attributes(Mosek.Optimizer, "QUIET" => true))
     P = @variable(model, [1:N, 1:N], PSD)
