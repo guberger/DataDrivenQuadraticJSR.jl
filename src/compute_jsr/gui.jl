@@ -2,7 +2,7 @@ Cursor = matplotlib.widgets.Cursor
 Button = matplotlib.widgets.Button
 Slider = matplotlib.widgets.Slider
 
-mutable struct the_gui
+mutable struct the_gui_compute_jsr
     A::SMatrix{2,2,Float64}
     γ::Float64
     trace::Float64
@@ -39,7 +39,7 @@ mutable struct the_gui
     circle::Tuple{Vector{Float64},Vector{Float64}}
 end
 
-function new_gui(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
+function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
     fig = PyPlot.figure(figsize = (10.4, 9.8))
     ax_points = fig.add_axes((0.05, 0.57, 0.4, 0.4), aspect = "equal")
     ax_ellipse = fig.add_axes((0.55, 0.57, 0.4, 0.4), aspect = "equal")
@@ -77,7 +77,8 @@ function new_gui(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
 
     the_t_circle = range(0.0, 2.0*π, length = np)
 
-    my_gui = the_gui(A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false,
+    my_gui = the_gui_compute_jsr(
+        A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false,
         fig, ax_points, ax_ellipse, ax_constr,
         plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
         plt_ellipse, plt_ellipse_γ, plt_ellipse_x, plt_ellipse_y,
@@ -92,7 +93,7 @@ function new_gui(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, np=200)
     return my_gui
 end
 
-function initialize(MG)
+function initialize(MG::the_gui_compute_jsr)
     MG.ax_points.plot(MG.circle[1], MG.circle[2], "tab:blue")
     MG.ax_points.set_xlim(-1.5, 1.5)
     MG.ax_points.set_ylim(-1.5, 1.5)

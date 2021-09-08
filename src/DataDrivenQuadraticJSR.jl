@@ -7,9 +7,10 @@ using JuMP
 using MosekTools
 using PyPlot
 
-include("gui.jl")
-include("optimize.jl")
+include("proba_bounds/gui.jl")
+include("proba_bounds/bounds.jl")
 
-export new_gui
+include("compute_jsr/gui.jl")
+include("compute_jsr/optimize.jl")
 
 end # module
