@@ -1,5 +1,6 @@
 Cursor = matplotlib.widgets.Cursor
 Button = matplotlib.widgets.Button
+CheckButtons = matplotlib.widgets.CheckButtons
 Slider = matplotlib.widgets.Slider
 
 mutable struct the_gui_compute_jsr
@@ -10,6 +11,7 @@ mutable struct the_gui_compute_jsr
     ηa::Float64
     P_opt::SMatrix{2,2,Float64}
     is_P_opt_set::Bool
+    is_singular::Bool
     fig
     ax_points
     ax_ellipse
@@ -32,6 +34,7 @@ mutable struct the_gui_compute_jsr
     cursor_points
     button_compute
     button_clear
+    button_infty
     slider_γ
     slider_tr
     slider_ηm
@@ -65,6 +68,8 @@ function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, 
     button_compute = Button(ax_button_compute, "Compute cone")
     ax_button_clear = fig.add_axes((0.63, 0.33, 0.1, 0.075))
     button_clear = Button(ax_button_clear, "Clear")
+    ax_button_infty = fig.add_axes((0.51, 0.3225, 0.09, 0.09))
+    button_infty = CheckButtons(ax_button_infty, ("trace inf",), (false,))
 
     ax_slider_γ = fig.add_axes((0.06, 0.48, 0.88, 0.03))
     slider_γ = Slider(ax_slider_γ, "γ", valmin = 0.0, valmax = γ_max, valinit = γ)
@@ -78,13 +83,13 @@ function new_gui_compute_jsr(A; γ_max=5.0, trace_max=50.0, γ=1.0, trace=20.0, 
     the_t_circle = range(0.0, 2.0*π, length = np)
 
     my_gui = the_gui_compute_jsr(
-        A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false,
+        A, γ, trace, 0.0, 0.0, zero(SMatrix{2,2}), false, false,
         fig, ax_points, ax_ellipse, ax_constr,
         plt_points_x, plt_points_ηm, plt_points_ηa, plt_points_y,
         plt_ellipse, plt_ellipse_γ, plt_ellipse_x, plt_ellipse_y,
         plt_constr_circle, plt_constr_ellipse, plt_constr_lines,
         SVector{2,Float64}[], SVector{2,Float64}[], Float64[], Float64[],
-        cursor_points, button_compute, button_clear,
+        cursor_points, button_compute, button_clear, button_infty,
         slider_γ, slider_tr, slider_ηm, slider_ηa,
         (cos.(the_t_circle), sin.(the_t_circle)))
 
@@ -140,6 +145,16 @@ function initialize(MG::the_gui_compute_jsr)
         on_press_button_clear(MG)
     end
 
+    MG.button_infty.on_clicked() do event
+        MG.is_singular = MG.button_infty.get_status()[1]
+        draw_constr_circle(MG)
+        if MG.is_P_opt_set
+            draw_constr_ellipse(MG)
+        end
+        draw_constr_lines(MG)
+        set_constr_lims(MG)
+    end
+
     MG.slider_γ.on_changed() do val
         MG.γ = val
         draw_constr_lines(MG)
@@ -147,12 +162,14 @@ function initialize(MG::the_gui_compute_jsr)
 
     MG.slider_tr.on_changed() do val
         MG.trace = val
-        draw_constr_circle(MG)
-        if MG.is_P_opt_set
-            draw_constr_ellipse(MG)
+        if !MG.is_singular
+            draw_constr_circle(MG)
+            if MG.is_P_opt_set
+                draw_constr_ellipse(MG)
+            end
+            draw_constr_lines(MG)
+            set_constr_lims(MG)
         end
-        draw_constr_lines(MG)
-        set_constr_lims(MG)
     end
 
     MG.slider_ηm.on_changed() do val
@@ -208,7 +225,10 @@ function on_press_points(xydata, MG)
 end
 
 function on_press_button_compute(MG)
-    γ_opt, P_opt = jsr_quadratic(MG.x_list, MG.y_list, MG.ηm_list, MG.ηa_list, 0.0, 1e2)
+    the_max_trace = MG.is_singular ? nothing : 1e5
+    γ_opt, P_opt = jsr_quadratic(
+        MG.x_list, MG.y_list, MG.ηm_list, MG.ηa_list, 0.0, 1e2;
+        max_trace=the_max_trace)
     MG.P_opt = P_opt
     MG.is_P_opt_set = true
     @printf("Trace: %f\n", tr(P_opt))
@@ -263,22 +283,24 @@ function on_press_button_clear(MG)
 end
 
 function draw_constr_lines(MG)
+    the_trace = MG.is_singular ? 1.0 : MG.trace
     for (x, y, ηm, ηa, PLT) in zip(MG.x_list, MG.y_list,
             MG.ηm_list, MG.ηa_list, MG.plt_constr_lines)
-        p, q = points_2_plane(x, y, MG.γ, MG.trace, ηm, ηa)
+        p, q = points_2_plane(x, y, MG.γ, the_trace, ηm, ηa)
         PLT.set_xdata((p[1], q[1]))
         PLT.set_ydata((p[2], q[2]))
     end
 end
 
 function draw_constr_circle(MG)
-    rad = max(0.0, MG.trace/2.0 - 1.0)
+    rad = MG.is_singular ? 0.5 : max(0.0, MG.trace/2.0 - 1.0)
     MG.plt_constr_circle.set_xdata(rad.*MG.circle[1])
     MG.plt_constr_circle.set_ydata(rad.*MG.circle[2])
 end
 
 function draw_constr_ellipse(MG)
-    P_opt_n = MG.trace*MG.P_opt./tr(MG.P_opt)
+    the_trace = MG.is_singular ? 1.0 : MG.trace
+    P_opt_n = the_trace*MG.P_opt./tr(MG.P_opt)
     t = (P_opt_n[1, 1] - P_opt_n[2, 2])/2
     u = (P_opt_n[1, 2] + P_opt_n[2, 1])/2
     MG.plt_constr_ellipse.set_xdata((t,))
@@ -286,8 +308,7 @@ function draw_constr_ellipse(MG)
 end
 
 function set_constr_lims(MG)
-    rad = max(0.0, MG.trace/2.0 - 1.0)
-    clims = max(1.0, rad)
+    clims = MG.is_singular ? 0.5 : max(1.0, MG.trace/2.0 - 1.0)
     MG.ax_constr.set_xlim(-1.05*clims, 1.05*clims)
     MG.ax_constr.set_ylim(-1.05*clims, 1.05*clims)
 end

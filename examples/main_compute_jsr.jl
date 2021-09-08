@@ -11,6 +11,7 @@ sleep(0.1)
 # P = [8.0 0.0; 0.0 1.0]
 # A = P*0.5*(@SMatrix [cos(α) -sin(α); sin(α) cos(α)])/P
 A = @SMatrix [0 1; 1 0]
+A = @SMatrix [2 1; 0.1 1]
 
 my_gui = DataDrivenQuadraticJSR.new_gui_compute_jsr(A)
 
