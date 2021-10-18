@@ -1,6 +1,3 @@
-using LinearAlgebra
-using StaticArrays
-
 include(joinpath(@__DIR__, "../src/DataDrivenQuadraticJSR.jl"))
 # using Main.DataDrivenQuadraticJSR
 

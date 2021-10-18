@@ -33,7 +33,8 @@ end
 
 # Bound in Campi & Garatti 2018, Corollary 1
 # 0 ≤ ζ ≤ N
-function uniform_bound(N, ζ, β; tol=1e-5)
+# ϵ(N, ζ, β)
+function uniform_bound(N::Integer, ζ::Integer, β::Real; tol=1e-5)
     if iszero(β)
         return 1.0, 1.0
     elseif β ≥ 1 || iszero(ζ)
@@ -53,12 +54,14 @@ end
 
 # 0 ≤ k ≤ i ≤ N && 0 ≤ ϵ < 1
 function monomial_varying(N, i, k, ϵ)
-    val = sum(log.((i-k+1):(N-k))) - (N - i)*log(1 - ϵ) - sum(log.((i+1):N))
+    val = sum(log.((i - k + 1):(N - k))) -
+        (N - i)*log(1 - ϵ) - sum(log.((i + 1):N))
     return exp(val)
 end
 
 # Bound in Campi & Garatti 2018, Theorem 4
-function varying_bound_1(N, k, β; tol=1e-5)
+# ϵ(N, k, β)
+function varying_bound_1(N::Integer, k::Integer, β::Real; tol=1e-5)
     if k == N
         return 1.0, 1.0
     elseif iszero(β)
@@ -77,7 +80,8 @@ function varying_bound_1(N, k, β; tol=1e-5)
 end
 
 # Bound in Garatti & Campi 2021, Theorem 1
-function varying_bound_2(N, k, β; tol=1e-5)
+# ϵ(N, k, β)
+function varying_bound_2(N::Integer, k::Integer, β::Real; tol=1e-5)
     if k == N
         return 1.0, 1.0
     elseif iszero(β)
@@ -89,8 +93,29 @@ function varying_bound_2(N, k, β; tol=1e-5)
     f(ϵ) = if ϵ ≥ 1
         1.0
     else
-        β*sum(i -> monomial_varying(N, i, k, ϵ), k:(N-1))/N - 1
+        β*sum(i -> monomial_varying(N, i, k, ϵ), k:(N - 1))/N - 1
     end
 
     return bisection(f, 0.0, 1.0, tol=tol, maxiter=10000)
+end
+
+# Bound in Garatti & Campi 2021, Theorem 1
+# N(β, ϵ, k)
+function varying_bound_2_inv(β::Real, ϵ::Real, k::Integer)
+    if β ≥ 1
+        return 0
+    elseif ϵ ≤ 0 || β ≤ 0
+        return -1
+    end
+
+    N = k
+    F = 0
+
+    while F < N/β
+        F += 1
+        F *= ((N - k + 1)/(N + 1))/(1 - ϵ)
+        N += 1
+    end
+
+    return N
 end
