@@ -119,3 +119,14 @@ function varying_bound_2_inv(β::Real, ϵ::Real, k::Integer)
 
     return N
 end
+
+# Bound β = (1 - ϵ)^N, valid only for the single-variable monotonic case.
+# N(β, ϵ, k=1)
+function single_monotone_bound_inv(β::Real, ϵ::Real)
+    if β ≥ 1 || ϵ ≥ 1
+        return 0
+    elseif ϵ ≤ 0 || β ≤ 0
+        return -1
+    end
+    return ceil(Int, log(β)/log(1 - ϵ))
+end

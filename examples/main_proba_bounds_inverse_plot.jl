@@ -32,6 +32,11 @@ for (i, β) in enumerate(β_list)
         end
         ax.plot(N_list, ϵ_list, c=_cols[j], ls=_styles[i], lw=2.5)
     end
+    # local N_list = zeros(Int, length(ϵ_list))
+    # for (r, ϵ) in enumerate(ϵ_list)
+    #     N_list[r] = DataDrivenQuadraticJSR.single_monotone_bound_inv(β, ϵ)
+    # end
+    # ax.plot(N_list, ϵ_list, c=_cols[length(n_list) + 1], ls=_styles[i], lw=2.5)
 end
 
 ax.set_xlabel(L"$N$")
