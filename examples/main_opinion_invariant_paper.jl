@@ -55,13 +55,13 @@ A = DataDrivenQuadraticJSR.area_2sided_cap(sbar, 4)
 ϵbar = η/3
 nsample = DataDrivenQuadraticJSR.single_monotone_bound_inv(β, ϵbar)
 
-x_list = [SVector{4}(randn(4)) for i = 1:nsample]
-σ_list = rand((1, 2, 3), nsample)
-y_list = [A_list[σ_list[i]]*x_list[i] for i = 1:nsample]
-ηm_list = zeros(nsample)
-ηa_list = zeros(nsample)
-γ_opt, P_opt = DataDrivenQuadraticJSR.jsr_quadratic(x_list, y_list,
-    ηm_list, ηa_list, 0.0, 0.0; P=P)
+# x_list = [SVector{4}(randn(4)) for i = 1:nsample]
+# σ_list = rand((1, 2, 3), nsample)
+# y_list = [A_list[σ_list[i]]*x_list[i] for i = 1:nsample]
+# ηm_list = zeros(nsample)
+# ηa_list = zeros(nsample)
+# γ_opt, P_opt = DataDrivenQuadraticJSR.jsr_quadratic(x_list, y_list,
+#     ηm_list, ηa_list, 0.0, 0.0; P=P)
 
 print("")
 sleep(0.1)
