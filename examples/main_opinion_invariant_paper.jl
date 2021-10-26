@@ -54,6 +54,22 @@ A = DataDrivenQuadraticJSR.area_2sided_cap(sbar, 4)
 η = A/2
 ϵbar = η/3
 nsample = DataDrivenQuadraticJSR.single_monotone_bound_inv(β, ϵbar)
+γ2_opt = 0.0
+counter = 0
+
+for i = 1:nsample
+    global counter +=1
+    x = SVector{4}(randn(4))
+    σ = rand((1, 2, 3))
+    y = A_list[σ]*x
+    local γ2_opt_temp = (y'*P*y) / (x'*P*x + eps(1.0))
+    global γ2_opt = max(γ2_opt,γ2_opt_temp)
+    if mod(counter - 1, 1_000_000) == 0
+        display((counter, counter/nsample, nsample, γ2_opt, sqrt(γ2_opt)))
+    end
+end
+
+γ_opt = sqrt(γ2_opt)
 
 # x_list = [SVector{4}(randn(4)) for i = 1:nsample]
 # σ_list = rand((1, 2, 3), nsample)
