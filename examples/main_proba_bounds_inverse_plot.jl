@@ -49,7 +49,7 @@ LH = vcat(
         label = "\$n=$(n_list[j])\$") for j in eachindex(n_list)])
 ax.legend(handles = LH)
 
-fig.savefig(string("./figures/fig_proba_bounds.png"), dpi=600,
+fig.savefig(string("./figures/fig_proba_bounds.png"), dpi=200,
     transparent = false, bbox_inches = "tight")
 
 print("")

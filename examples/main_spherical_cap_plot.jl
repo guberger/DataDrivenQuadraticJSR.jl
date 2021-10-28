@@ -34,7 +34,7 @@ LH = [matplotlib.lines.Line2D([0], [0], c=_cols[i], ls="-", lw=4,
         label = "\$n=$(dim_list[i])\$") for i in eachindex(dim_list)]
 ax.legend(handles = LH)
 
-fig.savefig(string("./figures/fig_spherical_cap.png"), dpi=600,
+fig.savefig(string("./figures/fig_spherical_cap.png"), dpi=200,
     transparent = false, bbox_inches = "tight")
 
 print("")
