@@ -25,7 +25,8 @@ ax.set_yscale("log")
 
 for (i, β) in enumerate(β_list)
     for (j, n) in enumerate(n_list)
-        local k = n^2 + n - 1
+        # local k = n^2 + n - 1
+        local k = Int(n*(n + 1)/2)
         local N_list = zeros(Int, length(ϵ_list))
         for (r, ϵ) in enumerate(ϵ_list)
             N_list[r] = DataDrivenQuadraticJSR.varying_bound_2_inv(β, ϵ, k)
@@ -40,7 +41,8 @@ for (i, β) in enumerate(β_list)
 end
 
 ax.set_xlabel(L"$N$")
-ax.set_ylabel(L"$\bar\epsilon(n^2+n-1)$")
+# ax.set_ylabel(L"$\bar\epsilon(n^2+n-1)$")
+ax.set_ylabel(L"$\bar\epsilon(\frac{n(n+1)}2)$")
 
 LH = vcat(
     [matplotlib.lines.Line2D([0], [0], c="k", ls=_styles[i], lw=4,

@@ -17,17 +17,17 @@ sleep(0.1)
 fig = figure(figsize = (18.0, 8.5))
 ax = fig.add_subplot()
 
-A_list = range(0, 1, length=300)
+η_list = range(0, 1/2, length=300)
 dim_list = 2:8
 
 for (i, n) in enumerate(dim_list)
-    s_list = map(A -> DataDrivenQuadraticJSR.area_2sided_cap_inv(A, n), A_list)
-    ax.plot(A_list, s_list, c=_cols[i], ls="-", lw=2.5)
+    s_list = map(η -> DataDrivenQuadraticJSR.area_2sided_cap_inv(2*η, n), η_list)
+    ax.plot(η_list, s_list, c=_cols[i], ls="-", lw=2.5)
     # Ap_list = map(s -> DataDrivenQuadraticJSR.area_2sided_cap(s, n), s_list)
     # ax.plot(Ap_list, s_list, c="k", ls="--", lw=2.5)
 end
 
-ax.set_xlabel(L"$A$")
+ax.set_xlabel(L"$\eta$")
 ax.set_ylabel(L"$\bar{s}$")
 
 LH = [matplotlib.lines.Line2D([0], [0], c=_cols[i], ls="-", lw=4,
